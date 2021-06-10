@@ -19,6 +19,13 @@ public final class GraphQLQueryWatcher<Query: GraphQLQuery>: Cancellable, Apollo
 
   private var dependentKeys: Atomic<Set<CacheKey>?> = Atomic(nil)
 
+  private var isCancelled = Atomic<Bool>(false)
+
+  /// Checks the underlying value of `isCancelled`. Set up like this for better readability in `guard` statements
+  public var isNotCancelled: Bool {
+    !self.isCancelled.value
+  }
+
   /// Designated initializer
   ///
   /// - Parameters:
@@ -66,6 +73,13 @@ public final class GraphQLQueryWatcher<Query: GraphQLQuery>: Cancellable, Apollo
 
   /// Cancel any in progress fetching operations and unsubscribe from the store.
   public func cancel() {
+    guard self.isNotCancelled else {
+      // Do not proceed, this query watcher has been cancelled.
+      return
+    }
+
+    self.isCancelled.mutate { $0 = true }
+
     fetching.value?.cancel()
     client?.store.unsubscribe(self)
   }
